@@ -83,7 +83,7 @@ uint8_t lookup_tlb(uint8_t page_num)
   uint8_t frame_num = lookup_page_table(page_num);
 
   struct tlb_entry* it = tlb + tlb_fifo_idx;
-  tlb_fifo_idx = ++tlb_fifo_idx % 16;
+  tlb_fifo_idx = (tlb_fifo_idx + 1) % 16; // tlb_fifo_idx = ++tlb_fifo_idx % 16; is undefined behavior
 
   it->page_num = page_num;
   it->frame_num = frame_num;
@@ -111,16 +111,31 @@ void page_fault_handler(uint8_t page_num)
   FILE* fp = fopen("./input/BACKINGSTORE.bin", "r");
 
   // TODO: Fill this!
+  fseek(fp, page_num * 256, SEEK_SET);
+  fread(phy_mem + page_num * 256, 1, 256, fp); 
+
+  page_table[page_num].frame_num = page_num;
+  page_table[page_num].is_valid = 1;
 
   fclose(fp);
 }
 
 uint32_t to_phy_addr(uint32_t virt_addr)
 {
-  return 0xdeadbeaf; // TODO: Make it work!
+  uint16_t back = virt_addr & ((1 << 16) - 1);
+  uint16_t front = (virt_addr - back) >> 16;
+
+  uint8_t offset = back & ((1 << 8) - 1);
+  uint8_t page_number = (back - offset) >> 8;
+
+  uint16_t frame = lookup_tlb(page_number);
+
+  uint32_t pyadr = (frame << 8) + offset;
+
+  return pyadr; // TODO: Make it work!
 }
 
 uint8_t lookup_phy_mem(uint32_t phy_addr)
 {
-  return 0xbe; // TODO: Make it work!
+  return phy_mem[phy_addr]; // TODO: Make it work!
 }
